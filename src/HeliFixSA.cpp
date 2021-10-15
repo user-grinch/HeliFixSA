@@ -16,6 +16,29 @@ CdeclEvent<AddressList<0x53BFE2, H_CALL>, PRIORITY_BEFORE, ArgPickNone, void()> 
 class HeliFix
 {
 public:
+
+	void SetupHeliCrash(CHeli *&pHeli)
+	{
+		if (pHeli && !(pHeli->m_pDriver && pHeli->m_pDriver->IsAlive()))
+		{
+			pHeli->m_autoPilot.m_nCarMission = MISSION_HELI_CRASH_LAND;
+			pHeli->m_fHealth = 200.0f; // decrease health to ensure explosion on land
+
+			CPed *pDriver = pHeli->m_pDriver;
+			if(pDriver)
+			{
+				Command<Commands::MARK_CHAR_AS_NO_LONGER_NEEDED>(CPools::GetPedRef(pDriver));
+			}
+
+			CPed *pPass = pHeli->m_apPassengers[0];
+			if (pPass)
+			{
+				Command<Commands::MARK_CHAR_AS_NO_LONGER_NEEDED>(CPools::GetPedRef(pPass));
+			}
+			pHeli = nullptr;
+		}
+	}
+
 	HeliFix()
 	{
 		// add driver and a passenger in helis
@@ -26,17 +49,18 @@ public:
 
 			if (pVeh->m_nModelIndex == COP_CHOPPER)
 			{
-				int hDriver;
+				int hDriver, hPass;
 				Command<Commands::REQUEST_MODEL>(COP_CHAR);
 				Command<Commands::LOAD_ALL_MODELS_NOW>();
 				Command<Commands::CREATE_CHAR_INSIDE_CAR>(hVeh, PED_TYPE_COP, COP_CHAR, &hDriver);
 				pVeh->m_pDriver = CPools::GetPed(hDriver);
-				Command<Commands::CREATE_CHAR_AS_PASSENGER>(hVeh, PED_TYPE_COP, COP_CHAR);
+				Command<Commands::CREATE_CHAR_AS_PASSENGER>(hVeh, PED_TYPE_COP, COP_CHAR, 0, &hPass);
+				pVeh->m_apPassengers[0] = CPools::GetPed(hPass);
 				Command<Commands::MARK_MODEL_AS_NO_LONGER_NEEDED>(COP_CHAR);
 			}
 			else
 			{
-				int hDriver;
+				int hDriver, hPass;
 				Command<Commands::REQUEST_MODEL>(PILOT_CHAR);
 				Command<Commands::REQUEST_MODEL>(NEWS_CHAR);
 				Command<Commands::LOAD_ALL_MODELS_NOW>();
@@ -44,7 +68,8 @@ public:
 				pVeh->m_pDriver = CPools::GetPed(hDriver);
 				if (pVeh->m_nModelIndex == NEWS_CHOPPER)
 				{
-					Command<Commands::CREATE_CHAR_AS_PASSENGER>(hVeh, PED_TYPE_CIVMALE, NEWS_CHAR);
+					Command<Commands::CREATE_CHAR_AS_PASSENGER>(hVeh, PED_TYPE_CIVMALE, NEWS_CHAR, 0, &hPass);
+					pVeh->m_apPassengers[0] = CPools::GetPed(hPass);
 				}
 
 				Command<Commands::MARK_MODEL_AS_NO_LONGER_NEEDED>(NEWS_CHAR);
@@ -69,21 +94,10 @@ public:
 		}); 
 
 		// Lose heli control on driver death
-		updateHeliEvent += []()
+		updateHeliEvent += [this]()
 		{
-			if (CHeli::pHelis[0] && !CHeli::pHelis[0]->m_pDriver->IsAlive())
-			{
-				CHeli::pHelis[0]->m_autoPilot.m_nCarMission = MISSION_HELI_CRASH_LAND;
-				CHeli::pHelis[0]->m_fHealth = 400.0f; // decrease health to ensure explosion on land
-				CHeli::pHelis[0] = nullptr;
-			}
-
-			if (CHeli::pHelis[1] && !CHeli::pHelis[1]->m_pDriver->IsAlive())
-			{
-				CHeli::pHelis[1]->m_autoPilot.m_nCarMission = MISSION_HELI_CRASH_LAND;
-				CHeli::pHelis[1]->m_fHealth = 400.0f;
-				CHeli::pHelis[1] = nullptr;
-			}
+			SetupHeliCrash(CHeli::pHelis[0]);
+			SetupHeliCrash(CHeli::pHelis[1]);
 		};
 	};
 } heliFix;
