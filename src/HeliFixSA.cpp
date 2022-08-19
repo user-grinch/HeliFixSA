@@ -2,6 +2,7 @@
 #include <assembly.hpp>
 #include <extensions/ScriptCommands.h>
 #include <extensions/scripting/ScriptCommandNames.h>
+#include <CHud.h>
 
 #define NEWS_CHOPPER 488
 #define COP_CHOPPER 497
@@ -12,6 +13,7 @@
 int &numSearchLights = *(int*)0xC1C96C;
 using namespace plugin;
 CdeclEvent<AddressList<0x53BFE2, H_CALL>, PRIORITY_BEFORE, ArgPickNone, void()> updateHeliEvent;
+ThiscallEvent<AddressList<0x6C6F44, H_CALL>, PRIORITY_BEFORE, ArgPickN<CVehicle*, 0>, void(CVehicle*)> heliBlowUpEvent;
 
 class HeliFix
 {
@@ -98,6 +100,25 @@ public:
 		{
 			SetupHeliCrash(CHeli::pHelis[0]);
 			SetupHeliCrash(CHeli::pHelis[1]);
+		};
+
+		// Fix infinite blowing up issue with fire_on_driver plugin
+		heliBlowUpEvent += [](CVehicle *pHeli)
+		{
+			static HMODULE installed = GetModuleHandle("fire_on_driver.asi");
+			if (pHeli && installed)
+			{
+				if (pHeli->m_pDriver)
+				{
+					pHeli->m_pDriver->Remove();
+					pHeli->m_pDriver = nullptr;
+				}
+				if (pHeli->m_apPassengers[0])
+				{
+					pHeli->m_apPassengers[0]->Remove();
+					pHeli->m_apPassengers[0] = nullptr;
+				}
+			}	
 		};
 	};
 } heliFix;
