@@ -1,7 +1,6 @@
-# HeliFixSA
+# HeliFixVC
 
-Fixes bugs with GTA SA Helicopters.
+Fixes bugs with GTA VC Helicopters.
 
 Fixes,
 * Drivers for helicopters
-* No searchlights during day
